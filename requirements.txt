@@ -1,0 +1,14 @@
+wheel
+setuptools
+pydantic
+PyYAML
+pyOpenssl
+requests
+websocket_client
+git+https://github.com/ecomsense/stock-brokers
+git+https://github.com/pannet1/toolkit
+pandas
+pendulum
+pyotp
+streaming_indicators
+finplot
