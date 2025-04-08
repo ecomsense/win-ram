@@ -47,6 +47,7 @@ class ChartData:
     def _calc_atr_renko(self, ohlc):
         df_candle = Helper.history()
         df_candle["vopen"] = df_candle["vclose"] = df_candle["volume"] = 0
+        ohlc = pd.concat([df_candle, ohlc], ignore_index=True)
         quotes = [
             Quote(
                 date=row["timestamp"],
