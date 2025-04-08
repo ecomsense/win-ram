@@ -6,11 +6,11 @@ import sys
 import os
 import pendulum as pdlm
 import pandas as pd
+from stock_brokers.finvasia.finvasia import Finvasia
 
 # Add parent directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from stocko.stockoapi import AlphaTrade
-from stock_brokers.finvasia.finvasia import Finvasia
 
 
 def history():
