@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont
 import pendulum as pdlm
-
+from api import Helper
 
 from stock_indicators import indicators
 from decimal import Decimal
@@ -34,8 +34,7 @@ class ChartData:
         return ticks
 
     def __init__(self):
-        self.df_ticks = pd.DataFrame([self._make_tick()])
-        self.remove_data_counter = len(self.df_ticks)
+        self.df_ticks = None
         self.df_ohlc = None
 
     def _get_ohlc(self, df_work):
@@ -45,7 +44,9 @@ class ChartData:
         df_candle["vopen"] = df_candle["vclose"] = df_candle["volume"] = 0
         return df_candle
 
-    def _calc_atr_renko(self):
+    def _calc_atr_renko(self, ohlc):
+        df_candle = Helper.history()
+        df_candle["vopen"] = df_candle["vclose"] = df_candle["volume"] = 0
         quotes = [
             Quote(
                 date=row["timestamp"],
@@ -54,7 +55,7 @@ class ChartData:
                 low=Decimal(str(row["low"])),
                 close=Decimal(str(row["close"])),
             )
-            for _, row in self.df_ohlc.iterrows()
+            for _, row in ohlc.iterrows()
         ]
 
         results = indicators.get_renko_atr(quotes, 11)
@@ -87,15 +88,13 @@ class ChartData:
 
     def update_data(self):
         new_tick = self._make_tick()
-        self.remove_data_counter += 1
         new_df = pd.DataFrame([new_tick])
         self.df_ticks = pd.concat([self.df_ticks, new_df], ignore_index=True)
         df_work = self.df_ticks.copy()
         self.df_ohlc = self._get_ohlc(df_work)
-        if len(self.df_ohlc) > (100 + 11):
-            renko_df = self._calc_atr_renko()
-            candle = self.df_ohlc.copy()
-            self.df_ohlc = self._merge_renko_and_ohlc(candle, renko_df)
+        candle = self.df_ohlc.copy()
+        renko_df = self._calc_atr_renko(self.df_ohlc)
+        self.df_ohlc = self._merge_renko_and_ohlc(candle, renko_df)
         if self.df_ohlc is not None:
             self.df_ohlc["timestamp"] = (
                 self.df_ohlc["timestamp"].dt.tz_localize(None).astype("datetime64[ns]")
