@@ -10,6 +10,17 @@ from stock_brokers.finvasia.finvasia import Finvasia
 
 # Add parent directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from stocko import (
+    LiveFeedType,
+    TransactionType,
+    OrderType,
+    ProductType,
+)
+
+from wserver import Wserver
+
+# Add parent directory to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from stocko.stockoapi import AlphaTrade
 
 
@@ -114,7 +125,14 @@ class Helper:
     def api(cls):
         if cls._api is None:
             cls._api = login()
+            cls._ws = Wserver(cls._api)
+            Token = cls._ws.broker.get_instrument_by_symbol("NSE", "Nifty 50")
+            cls._ws.broker.subscribe(Token, LiveFeedType.COMPACT)
         return cls._api
+
+    @classmethod
+    def ticks(cls):
+        return cls._ws.live_data
 
     @classmethod
     def history(cls):
@@ -124,5 +142,11 @@ class Helper:
 
 
 if __name__ == "__main__":
-    Helper.api()
-    resp = Helper.history()
+    try:
+        Helper.api()
+        # resp = Helper.history()
+        while True:
+            Helper.ticks()
+    except KeyboardInterrupt as k:
+        print(k)
+        __import__("sys").exit(0)

@@ -19,7 +19,7 @@ from stock_indicators import Quote
 
 class ChartData:
     ltp = 22000
-    symbol = "DUMB"
+    symbol = "Nifty 50"
     timezone = "Asia/Kolkata"
 
     def _make_tick(self):
@@ -39,7 +39,7 @@ class ChartData:
 
     def _get_ohlc(self, df_work):
         df_work.set_index("timestamp", inplace=True)
-        df_candle = df_work["ltp"].resample("2s").ohlc().dropna()
+        df_candle = df_work["ltp"].resample("5Min").ohlc().dropna()
         df_candle = df_candle.reset_index()
         df_candle["vopen"] = df_candle["vclose"] = df_candle["volume"] = 0
         return df_candle
@@ -66,7 +66,7 @@ class ChartData:
             columns=["date", "vopen", "vclose"],
         ).set_index("date")
 
-        renko_df.index = pd.to_datetime(renko_df.index).floor("s")
+        renko_df.index = pd.to_datetime(renko_df.index).floor("1min")
         renko_df = renko_df[~renko_df.index.duplicated(keep="first")]
         renko_df["volume"] = 0
         renko_df.loc[renko_df["vclose"] > renko_df["vopen"], "volume"] = 1
@@ -88,13 +88,17 @@ class ChartData:
         return ohlc_df
 
     def update_data(self):
-        new_tick = self._make_tick()
+        timestamp = pdlm.now(self.timezone)
+        full_tick = Helper.ticks()["NSE|Nifty 50"]
+        new_tick = dict(timestamp=timestamp, ltp=full_tick["ltp"])
+        # new_tick = self._make_tick()
         new_df = pd.DataFrame([new_tick])
         self.df_ticks = pd.concat([self.df_ticks, new_df], ignore_index=True)
         df_work = self.df_ticks.copy()
-        self.df_ohlc = self._get_ohlc(df_work)
-        candle = self.df_ohlc.copy()
-        renko_df = self._calc_atr_renko(self.df_ohlc)
+        ohlc = self._get_ohlc(df_work)
+        # todo
+        candle = ohlc.copy()
+        renko_df = self._calc_atr_renko(ohlc)
         self.df_ohlc = self._merge_renko_and_ohlc(candle, renko_df)
         if self.df_ohlc is not None:
             self.df_ohlc["timestamp"] = (
@@ -103,8 +107,13 @@ class ChartData:
             self.df_ohlc["t"] = range(len(self.df_ohlc))
             self.df_ohlc.set_index("t", inplace=True)
 
+    def manage_trades(self):
+        pass
+
 
 class ChartManager:
+    signal = 0
+
     def __init__(self, ax, ax2, price_label):
         self.ax = ax
         self.ax2 = ax2
@@ -143,18 +152,44 @@ class ChartManager:
             print(f"Error updating chart: {e}")
             return False
 
+    def try_and_trade(self):
+        if self.data.df_ohlc is None or self.data.df_ohlc.empty:
+            return
+
+        counted = len(self.data.df_ohlc)
+        if counted <= 1:
+            return
+
+        if counted != self.counted:
+            self.counted = counted
+            last = self.data.df_ohlc.iloc[-1]
+            prev = self.data.df_ohlc.iloc[-2]
+            print(last, prev)
+
+            if prev["volume"] == 1:
+                self.signal = 1
+            elif prev["volume"] == -1:
+                self.signal = -1
+
+    def check_exit_status(self):
+        pass
+
     def update_loop(self):
         try:
             self.data.update_data()
             self.update_chart()
+            if self.signal == 0:
+                self.try_and_trade()
+            else:
+                self.check_exit_status()
         except Exception as e:
             print(f"Error in update loop: {e}")
 
 
 class TradingApp:
     def __init__(self):
+        Helper.api()
         self.app = QApplication([])
-        self.current_symbol = "DUMB"
         self.init_ui()
 
     def init_ui(self):
