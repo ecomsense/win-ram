@@ -7,7 +7,6 @@ Modified By Sanju for Stocko on 01-01-2025.
 from constants import S_DATA
 
 import csv
-import ast
 import os
 import json
 import requests
@@ -15,13 +14,12 @@ import threading
 import websocket
 import logging
 import enum
-from datetime import datetime, timedelta, date
+from datetime import datetime
 from time import sleep
 from collections import OrderedDict
 from stocko.protlib import (
     CUInt,
     CStruct,
-    CLong,
     CULong,
     CUChar,
     CArray,
@@ -32,7 +30,6 @@ from collections import namedtuple
 import pandas as pd
 import pytz
 import stocko.exceptions as ex
-import sys
 from stocko.connect import Connect
 import zipfile
 from pathlib import Path
@@ -280,7 +277,8 @@ class AlphaTrade(Connect):
         self.__headers["Authorization"] = f"Bearer {self.__access_token}"
         self.__login_id = login_id
         self.__password = password
-        self.__totp = totp  # self.__twofa = twofa
+        self.__totp = totp
+        # self.__twofa = twofa
         self.__client_secret = client_secret
         self.__websocket = None
         self.__websocket_connected = False
@@ -699,9 +697,10 @@ class AlphaTrade(Connect):
             raise TypeError(
                 "Required parameter transaction_type not of type TransactionType"
             )
-
+        """
         if not isinstance(instrument, Instrument):
             raise TypeError("Required parameter instrument not of type Instrument")
+        """
 
         if not isinstance(quantity, int):
             raise TypeError("Required parameter quantity not of type int")

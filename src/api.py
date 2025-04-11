@@ -1,3 +1,4 @@
+from ast import Dict
 import curl_cffi.requests as requests
 from curl_cffi.curl import CurlHttpVersion
 import pyotp
@@ -10,12 +11,8 @@ from stock_brokers.finvasia.finvasia import Finvasia
 
 # Add parent directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from stocko import (
-    LiveFeedType,
-    TransactionType,
-    OrderType,
-    ProductType,
-)
+from stocko import LiveFeedType, Instrument
+
 
 from wserver import Wserver
 
@@ -140,13 +137,87 @@ class Helper:
             cls._history = history()
         return cls._history
 
+    @classmethod
+    def place_bo(cls, **kwargs):
+        try:
+            inst = Instrument(
+                exchange=kwargs["exchange"],
+                token=kwargs["token"],
+                symbol=kwargs["symbol"],
+                name="NIFTY",
+                expiry=kwargs["expiry_date"],
+                lot_size=75,
+            )
+            print(inst)
+            resp = cls._api.buy_bo(
+                instrument=inst,
+                qty=75,
+                price=kwargs["close_price"] + 20,
+                trigger_price=None,
+                stop_loss_value=8,
+                square_off_value=5,
+            )
+            print(resp)
+            return resp
+        except Exception as e:
+            print(e)
+
+    @classmethod
+    def _get_book(cls, bookname):
+        payload = {"client_id": "MM781"}
+        if bookname == "trade":
+            resp = cls._api.fetch_trades(payload)
+        elif bookname == "completed_orders":
+            resp = cls._api.fetch_completed_orders(payload)
+        elif bookname == "pending_orders":
+            resp = cls._api.fetch_pending_orders(payload)
+        else:
+            resp = None
+
+        if resp and any(resp):
+            return resp
+        else:
+            return [{}]
+
+    @classmethod
+    def tradebook(cls):
+        return cls._get_book("trade")
+
+    @classmethod
+    def completed_orderbook(cls):
+        return cls._get_book("completed_orders")
+
+    @classmethod
+    def pending_orderbook(cls):
+        return cls._get_book("pending_orders")
+
+    @classmethod
+    def orderbook(cls):
+        return cls._get_book("order")
+
 
 if __name__ == "__main__":
     try:
         Helper.api()
+        instrument = Instrument(
+            exchange="NFO",
+            token="48200",
+            symbol="NIFTY2541722850CE",
+            name="NIFTY",
+            expiry="17APR25",
+            lot_size=75,
+        )
+        if not isinstance(instrument, Instrument):
+            raise TypeError("Required parameter instrument not of type Instrument")
+        else:
+            print("instrument is successfuly validated")
+        """
+        print(Helper.pending_orderbook())
+        print(Helper.completed_orderbook())
         # resp = Helper.history()
         while True:
             Helper.ticks()
+        """
     except KeyboardInterrupt as k:
         print(k)
         __import__("sys").exit(0)

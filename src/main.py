@@ -15,6 +15,11 @@ from api import Helper
 from stock_indicators import indicators
 from decimal import Decimal
 from stock_indicators import Quote
+from symbols import Symbols
+
+exchange = "NFO"
+base = "NIFTY"
+expiry = "17APR24"
 
 
 class ChartData:
@@ -113,12 +118,15 @@ class ChartData:
 
 class ChartManager:
     signal = 0
+    counted = 0
 
     def __init__(self, ax, ax2, price_label):
         self.ax = ax
         self.ax2 = ax2
         self.data = ChartData()
         self.price_label = price_label
+        self.underlying_token = Helper._api.get_instrument_by_symbol("NSE", "Nifty 50")
+        self.Symbol = Symbols(exchange, base, expiry)
 
     def update_chart(self):
         if self.data.df_ohlc is None or self.data.df_ohlc.empty:
@@ -160,16 +168,26 @@ class ChartManager:
         if counted <= 1:
             return
 
+        option = {}
         if counted != self.counted:
             self.counted = counted
             last = self.data.df_ohlc.iloc[-1]
             prev = self.data.df_ohlc.iloc[-2]
             print(last, prev)
 
+            atm = self.Symbol.get_atm(last["close"])
+            resp = Helper._api.get_optionchain(self.underlying_token, 1, atm)
+
             if prev["volume"] == 1:
+                option = self.Symbol.get_atm_strike(resp, expiry, "call_option")
                 self.signal = 1
             elif prev["volume"] == -1:
+                option = self.Symbol.get_atm_strike(resp, expiry, "put_option")
                 self.signal = -1
+
+        if option and any(option):
+            print(option)
+            Helper.place_bo(**option)
 
     def check_exit_status(self):
         pass
